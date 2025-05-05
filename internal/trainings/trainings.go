@@ -20,40 +20,38 @@ type Training struct {
 func (t *Training) Parse(datastring string) (err error) {
 	parts := strings.Split(datastring, ",")
 	if len(parts) != 3 {
-		return fmt.Errorf("неверный формат данных: %q", datastring)
+		return fmt.Errorf("invalid data format: %q", datastring)
 	}
 
-	s := parts[0]
-	if strings.TrimSpace(s) != s || s == "" {
-		return fmt.Errorf("неверное количество шагов: %q", s)
+	steps, err := strconv.Atoi(parts[0])
+	if err != nil {
+		return fmt.Errorf("cannot parse steps %q: %w", parts[0], err)
 	}
-	steps, err := strconv.Atoi(s)
-	if err != nil || steps <= 0 {
-		return fmt.Errorf("неверное количество шагов: %q", s)
+	if steps <= 0 {
+		return fmt.Errorf("steps must be > 0, got %d", steps)
 	}
 	t.Steps = steps
 
 	t.TrainingType = parts[1]
 
-	dur := parts[2]
-	d, err := time.ParseDuration(dur)
-	if err != nil || d <= 0 {
-		return fmt.Errorf("неверная продолжительность: %q", dur)
+	dur, err := time.ParseDuration(parts[2])
+	if err != nil {
+		return fmt.Errorf("cannot parse duration %q: %w", parts[2], err)
 	}
-	t.Duration = d
+	if dur <= 0 {
+		return fmt.Errorf("duration must be > 0, got %q", parts[2])
+	}
+	t.Duration = dur
 
 	return nil
 }
 
 func (t Training) ActionInfo() (string, error) {
-	if t.Steps <= 0 ||
-		t.Duration <= 0 ||
-		t.Weight <= 0 ||
-		t.Height <= 0 {
-		return "", fmt.Errorf("некорректные данные для тренировки")
+	if t.Steps <= 0 || t.Duration <= 0 || t.Weight <= 0 || t.Height <= 0 {
+		return "", fmt.Errorf("invalid training data")
 	}
 
-	dist := spentenergy.Distance(t.Steps, t.Height)
+	distance := spentenergy.Distance(t.Steps, t.Height)
 	speed := spentenergy.MeanSpeed(t.Steps, t.Height, t.Duration)
 
 	var cal float64
@@ -64,7 +62,7 @@ func (t Training) ActionInfo() (string, error) {
 	case "Ходьба":
 		cal, err = spentenergy.WalkingSpentCalories(t.Steps, t.Weight, t.Height, t.Duration)
 	default:
-		return "", fmt.Errorf("неизвестный тип тренировки: %q", t.TrainingType)
+		return "", fmt.Errorf("unknown training type: %q", t.TrainingType)
 	}
 	if err != nil {
 		return "", err
@@ -78,7 +76,7 @@ func (t Training) ActionInfo() (string, error) {
 			"Сожгли калорий: %.2f\n",
 		t.TrainingType,
 		t.Duration.Hours(),
-		dist,
+		distance,
 		speed,
 		cal,
 	), nil
